@@ -1,4 +1,4 @@
-const CACHE = 'rtc-nomade-v5';
+const CACHE = 'rtc-nomade-v6';
 const ASSETS = [
     'index.html', 
     'style.css',
