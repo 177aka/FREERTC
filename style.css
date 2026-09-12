@@ -217,7 +217,7 @@ body {
 
 @media (max-width: 480px) {
     .verif-badge img {
-        height: 14px !important;
+        height: 30px !important;
     }
 }
 
