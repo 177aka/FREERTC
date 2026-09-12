@@ -125,12 +125,13 @@ body {
     justify-content: center;
 }
 
-.droma-logo { 
-    width: 95%; 
-    height: auto;
-    object-fit: contain;
 
-    transform: scale(1.23) translateX(-5px) translateY(3px)
+
+.center-circle img, 
+.droma-logo {
+    width: 87% !important; /* Réduit de 62% à 52% pour exactitude visuelle */
+    height: auto !important;
+    object-fit: contain;
 }
 
 .orbital-system { 
@@ -147,8 +148,8 @@ body {
     border-radius: 50%; 
     left: calc(50% - 17.5px); 
 }
-.green { background: #00FF66; top: -28px; }
-.brown { background: #381D18; bottom: -28px; }
+.green { background: var(--bubble-green, #00FF66); top: -28px; }
+.brown { background: var(--bubble-brown, #381D18); bottom: -28px; }
 
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
@@ -171,42 +172,48 @@ body {
     overflow: hidden;
 }
 
+/* --- Badge Forme Pilule Allongée --- */
 .header-ticket { 
     display: flex; 
     align-items: center;
     justify-content: space-between;
     background: #CDD4E2;
     height: 28px;
+    position: relative;
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
+    overflow: hidden; /* Empêche les débordements de bordure */
 }
 
 .verif-badge {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: calc(100% + 1px); 
-    margin-bottom: -1px;      
-    padding: 0 12px;
-    background: white;
-    border-right: 1.55px solid #305890;
-    border-bottom: 1.55px solid #305890;
-    border-top-left-radius: 11px;     
-    border-bottom-right-radius: 12px; 
+    background: #ffffff;
+    padding: 0 14px !important;
+    
+    /* Bordure bleu foncé 100% OPAQUE */
+    border-right: 1.5px solid #305890 !important;
+    border-bottom: 1.5px solid #305890 !important;
+    
+    /* Un tout petit peu moins pilule (ajusté de 16px à 12px) */
+    border-bottom-right-radius: 12px !important;
+    
+    box-sizing: border-box;
+    height: 100%;
+    min-width: 46px;
 }
-
 .verif-badge img { 
-    height: 24px !important;
+    /* Image légèrement agrandie */
+    height: 18px !important; 
     width: auto !important;
     display: block;
+    object-fit: contain;
 }
 
-@media (min-width: 768px) {
-    .verif-badge img { 
-        height: 15px !important;
-        width: auto !important;
-    }
-    
-    .verif-badge {
-        padding: 0 8px;
+@media (max-width: 480px) {
+    .verif-badge img {
+        height: 14px !important;
     }
 }
 
@@ -221,8 +228,8 @@ body {
 
 .ticket-title {
     color: #111111; 
-    font-weight: 645; 
-    font-size: 18px;
+    font-weight: 500 !important; /* Plus fin comme le vrai */
+    font-size: 16px !important;
     width: 100%;
     text-align: right;
     line-height: 1.2;
@@ -236,17 +243,18 @@ body {
 }
 
 .date-label {
-    font-size: 14px;
-    color: #444444;
-    margin-bottom: 0.5px;
+    font-size: 13px !important;
+    color: #555555;
+    margin-bottom: 2px;
 }
+
 .date-item { 
     display: flex; 
     align-items: center; 
-    margin-bottom: 1px; 
+    margin-bottom: 2px; 
     font-size: 14px;
+    font-weight: 400 !important; /* Texte normal non gras */
 }
-
 .cal-icon {
     width: 18px !important;
     height: 18px !important;
@@ -263,8 +271,8 @@ body {
 .text-bold { font-weight: 700; }
 
 .expiration-style {
-    font-weight: 600 !important;
-    font-size: 14.8px !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
 }
 
 .qr-box {
@@ -314,9 +322,9 @@ body {
 }
 
 .rtc-title {
-    font-weight: 645;
+    font-weight: 500 !important;
     color: #111111;
-    font-size: 18px;
+    font-size: 16px !important;
     text-align: right;
 }
 
@@ -336,10 +344,10 @@ body {
 }
 
 .rtc-serial {
-    font-weight: 900;
-    font-size: 23px;
+    font-weight: 700 !important; /* Semi-gras propre au lieu de 900 */
+    font-size: 21px !important;
     color: #000000;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.5px;
 }
 
 .progress-bar-container {
