@@ -129,7 +129,7 @@ body {
 
 .center-circle img, 
 .droma-logo {
-    width: 87% !important; /* Réduit de 62% à 52% pour exactitude visuelle */
+    width: 93% !important; /* Réduit de 62% à 52% pour exactitude visuelle */
     height: auto !important;
     object-fit: contain;
 }
@@ -217,7 +217,7 @@ body {
 
 @media (max-width: 480px) {
     .verif-badge img {
-        height: 21px !important;
+        height: 18px !important;
     }
 }
 
