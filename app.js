@@ -1,29 +1,26 @@
 // --- Initialisation des couleurs sauvegardées ---
-const savedTop = localStorage.getItem('rtc-top-color') || '#00ff66';
-const savedBottom = localStorage.getItem('rtc-bottom-color') || '#381d18';
+const savedTop = localStorage.getItem('rtc-top-color') || '#ff4500';
+const savedBottom = localStorage.getItem('rtc-bottom-color') || '#cc0000';
 document.documentElement.style.setProperty('--bubble-green', savedTop);
 document.documentElement.style.setProperty('--bubble-brown', savedBottom);
 
-// --- Fonctions utilitaires ---
 function formatTwoDigits(n) { 
     return n < 10 ? '0' + n : n; 
 }
 
-// Format 24H strict sans p.m./a.m.
 function formatTime24h(date) {
     return `${formatTwoDigits(date.getHours())}:${formatTwoDigits(date.getMinutes())}`;
 }
 
-function generateRTCSerial() {
+function generateSerial(prefix) {
     const characters = '0123456789ABCDEF';
-    let result = '1-';
+    let result = prefix + '-';
     for (let i = 0; i < 13; i++) {
         result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return result;
 }
 
-// Fonction de mise à jour globale des couleurs
 function updateColors(topColor, bottomColor) {
     document.documentElement.style.setProperty('--bubble-green', topColor);
     document.documentElement.style.setProperty('--bubble-brown', bottomColor);
@@ -44,21 +41,52 @@ function setPipetteUI(target, color) {
     if (input) input.value = color;
 }
 
-// --- Initialisation au chargement du DOM ---
+// --- Gestion dynamique du Réseau (RTC ou Lévis) ---
+const savedNetwork = localStorage.getItem('rtc-network') || 'rtc';
+const networkSelect = document.getElementById('network-select');
+if (networkSelect) networkSelect.value = savedNetwork;
+
+function applyNetworkConfig(network) {
+    localStorage.setItem('rtc-network', network);
+    
+    const body = document.body;
+    const mainTitle = document.getElementById('main-ticket-title');
+    const footerTitle = document.getElementById('footer-ticket-title');
+    const serialElem = document.getElementById('serial-display');
+    
+    if (network === 'levi') {
+        body.classList.add('mode-levi');
+        if (mainTitle) mainTitle.textContent = "STLévis - Mensuel - Régulier";
+        if (footerTitle) footerTitle.textContent = "Réservé au RTC";
+    } else {
+        body.classList.remove('mode-levi');
+        if (mainTitle) mainTitle.textContent = "RTC - 1 passage - Général";
+        if (footerTitle) footerTitle.textContent = "Réservé au RTC";
+    }
+    if (serialElem && !serialElem.dataset.custom) {
+        serialElem.textContent = generateSerial('1');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
-    // Enregistrement du Service Worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js');
     }
 
-    // Numéro de série RTC
-    const serialElem = document.getElementById('serial-display');
-    if (serialElem) {
-        serialElem.textContent = generateRTCSerial();
+    applyNetworkConfig(savedNetwork);
+
+    if (networkSelect) {
+        networkSelect.addEventListener('change', (e) => {
+            applyNetworkConfig(e.target.value);
+        });
     }
 
-    // Gestion des dates au format 24h
+    const serialElem = document.getElementById('serial-display');
+    if (serialElem && serialElem.textContent.includes('XXXXXXXXXXXXX')) {
+        serialElem.textContent = generateSerial('1');
+    }
+
     const now = new Date();
     const expire = new Date(now.getTime() + 90 * 60 * 1000); 
 
@@ -73,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('rtc-activation-date').textContent = fullActivation;
     document.getElementById('expiration-date').textContent = fullExpiration;
 
-    // Horloge & Barre de progression
     const startTime = now.getTime();
     const timerDisplay = document.getElementById('timer-display');
     const progressBar = document.getElementById('progress-bar');
@@ -100,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateTimeline, 1000);
     updateTimeline();
 
-    // Navigation d'écrans
     const screenTicket = document.getElementById('screen-ticket');
     const screenSettings = document.getElementById('screen-settings');
 
@@ -111,14 +137,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('btn-back-to-ticket').addEventListener('click', () => {
-        const topColor = localStorage.getItem('rtc-top-color') || '#00ff66';
-        const bottomColor = localStorage.getItem('rtc-bottom-color') || '#381d18';
+        const topColor = localStorage.getItem('rtc-top-color') || savedTop;
+        const bottomColor = localStorage.getItem('rtc-bottom-color') || savedBottom;
         updateColors(topColor, bottomColor);
 
         screenSettings.classList.remove('active');
         screenTicket.classList.add('active');
     });
 
+    // Animation du rond central
     const orbitFollower = document.getElementById('orbit-follower');
     const orbitNode = document.getElementById('orbit-node');
     let isTracking = false;
@@ -159,15 +186,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetOrbitState() {
-    if (isTracking) {
-        isTracking = false;
-        orbitNode.classList.remove('active-speed');
-        orbitFollower.style.position = 'absolute';
-        orbitFollower.style.width = '100%';
-        orbitFollower.style.height = '100%';
-        orbitFollower.style.transform = '';
+        if (isTracking) {
+            isTracking = false;
+            orbitNode.classList.remove('active-speed');
+            orbitFollower.style.position = 'absolute';
+            orbitFollower.style.width = '100%';
+            orbitFollower.style.height = '100%';
+            orbitFollower.style.transform = '';
+        }
     }
-}
 
     screenTicket.addEventListener('mousedown', handlePointerDown);
     window.addEventListener('mousemove', handlePointerMove);
@@ -180,77 +207,85 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) resetOrbitState();
     });
-
     window.addEventListener('touchcancel', resetOrbitState);
 
-const imageUpload = document.getElementById('image-upload');
-const imagePreview = document.getElementById('image-preview');
+    // --- AUTOMATISATION AMÉLIORÉE DES COULEURS DES BULLES ---
+    const imageUpload = document.getElementById('image-upload');
+    const imagePreview = document.getElementById('image-preview');
 
-let loadedImgCanvas = null;
-let activePickTarget = 1;
+    let loadedImgCanvas = null;
+    let activePickTarget = 1;
 
-imageUpload.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    imageUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-            imagePreview.src = event.target.result;
-            imagePreview.style.display = 'block';
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                imagePreview.src = event.target.result;
+                imagePreview.style.display = 'block';
 
-            loadedImgCanvas = document.createElement('canvas');
-            loadedImgCanvas.width = img.width;
-            loadedImgCanvas.height = img.height;
-            const ctx = loadedImgCanvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
+                loadedImgCanvas = document.createElement('canvas');
+                loadedImgCanvas.width = img.width;
+                loadedImgCanvas.height = img.height;
+                const ctx = loadedImgCanvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
 
-            // Algorithme de détection intelligente hors bleu/blanc
-            autoPickSmartColors(img, ctx);
+                autoPickSmartColors(img, ctx);
+            };
+            img.src = event.target.result;
         };
-        img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-});
+        reader.readAsDataURL(file);
+    });
 
     function autoPickSmartColors(img, ctx) {
-    const width = img.width;
-    const height = img.height;
+        const width = img.width;
+        const height = img.height;
 
-    const isRTCBlue = (r, g, b) => (b > 100 && b > r + 15);
-    const isWhite = (r, g, b) => (r > 215 && g > 215 && b > 215);
+        const rgbToHex = (p) => '#' + [p[0], p[1], p[2]].map(v => v.toString(16).padStart(2, '0')).join('');
 
-    const rgbToHex = (p) => '#' + [p[0], p[1], p[2]].map(v => v.toString(16).padStart(2, '0')).join('');
-
-    // Recherche autour d'un point central donné avec un rayon progressif
-    function findCircleColor(centerX, centerY) {
-        for (let radius = 0; radius < Math.min(width, height) * 0.2; radius += 4) {
-            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
-                const x = Math.floor(centerX + radius * Math.cos(angle));
-                const y = Math.floor(centerY + radius * Math.sin(angle));
-
-                if (x >= 0 && x < width && y >= 0 && y < height) {
+        // Recherche un vrai pixel coloré en évitant strictement le blanc, le noir et les nuances trop fades
+        function findVibrantPixel() {
+            // On scanne l'image de manière aléatoire ou par grille pour trouver une vraie couleur
+            for (let y = 10; y < height - 10; y += Math.floor(height / 10)) {
+                for (let x = 10; x < width - 10; x += Math.floor(width / 10)) {
                     const p = ctx.getImageData(x, y, 1, 1).data;
-                    if (!isRTCBlue(p[0], p[1], p[2]) && !isWhite(p[0], p[1], p[2])) {
-                        return p;
+                    const r = p[0], g = p[1], b = p[2];
+
+                    // Ignore le blanc, le noir/gris foncé, et les zones transparentes (alpha === 0)
+                    const isWhite = (r > 220 && g > 220 && b > 220);
+                    const isBlackOrGrey = (r < 40 && g < 40 && b < 40) || (Math.abs(r - g) < 15 && Math.abs(g - b) < 15);
+                    const isTransparent = (p[3] !== undefined && p[3] < 128);
+
+                    if (!isWhite && !isBlackOrGrey && !isTransparent) {
+                        return [r, g, b];
                     }
                 }
             }
+            return null;
         }
-        return null;
+
+        // On cherche deux pixels aux endroits différents de l'image
+        const p1 = findVibrantPixel();
+        // On décale le scan pour le second point
+        let p2 = null;
+        for (let y = height - 20; y > 20; y -= 20) {
+            const tempP = ctx.getImageData(Math.floor(width / 2), y, 1, 1).data;
+            if (!(tempP[0] > 220 && tempP[1] > 220 && tempP[2] > 220) && !(tempP[0] < 40 && tempP[1] < 40 && tempP[2] < 40)) {
+                p2 = tempP;
+                break;
+            }
+        }
+
+        const c1 = p1 ? rgbToHex(p1) : savedTop;
+        const c2 = p2 ? rgbToHex(p2) : (p1 ? rgbToHex(p1) : savedBottom);
+
+        updateColors(c1, c2);
+        setPipetteUI(1, c1);
+        setPipetteUI(2, c2);
     }
-
-    const p1 = findCircleColor(width * 0.35, height * 0.28);
-    const p2 = findCircleColor(width * 0.65, height * 0.52);
-
-    const c1 = p1 ? rgbToHex(p1) : '#00ff66';
-    const c2 = p2 ? rgbToHex(p2) : '#381d18';
-
-    updateColors(c1, c2);
-    setPipetteUI(1, c1);
-    setPipetteUI(2, c2);
-}
 
     function handleImageTouch(e) {
         if (!loadedImgCanvas) return;
@@ -270,11 +305,11 @@ imageUpload.addEventListener('change', (e) => {
         const hex = '#' + [p[0], p[1], p[2]].map(v => v.toString(16).padStart(2, '0')).join('');
 
         if (activePickTarget === 1) {
-            updateColors(hex, localStorage.getItem('rtc-bottom-color') || '#381d18');
+            updateColors(hex, localStorage.getItem('rtc-bottom-color') || savedBottom);
             setPipetteUI(1, hex);
             activePickTarget = 2;
         } else {
-            updateColors(localStorage.getItem('rtc-top-color') || '#00ff66', hex);
+            updateColors(localStorage.getItem('rtc-top-color') || savedTop, hex);
             setPipetteUI(2, hex);
             activePickTarget = 1;
         }
@@ -288,10 +323,10 @@ imageUpload.addEventListener('change', (e) => {
 
     function handleColorSelection(targetId, color) {
         if (targetId === 1) {
-            updateColors(color, localStorage.getItem('rtc-bottom-color') || '#381d18');
+            updateColors(color, localStorage.getItem('rtc-bottom-color') || savedBottom);
             setPipetteUI(1, color);
         } else {
-            updateColors(localStorage.getItem('rtc-top-color') || '#00ff66', color);
+            updateColors(localStorage.getItem('rtc-top-color') || savedTop, color);
             setPipetteUI(2, color);
         }
     }
@@ -299,14 +334,9 @@ imageUpload.addEventListener('change', (e) => {
     document.getElementById('input-color-1').addEventListener('input', (e) => handleColorSelection(1, e.target.value));
     document.getElementById('input-color-2').addEventListener('input', (e) => handleColorSelection(2, e.target.value));
 
-    if (savedTop) {
-        setPipetteUI(1, savedTop);
-    }
-    if (savedBottom) {
-        setPipetteUI(2, savedBottom);
-    }
+    if (savedTop) setPipetteUI(1, savedTop);
+    if (savedBottom) setPipetteUI(2, savedBottom);
 
-    // Vider le Cache
     document.getElementById('btn-clear-cache').addEventListener('click', () => {
         if ('caches' in window) {
             caches.keys().then((keyList) => {

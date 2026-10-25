@@ -1,10 +1,11 @@
-const CACHE = 'rtc-nomade-v6';
+const CACHE = 'rtc-nomade-v8';
 const ASSETS = [
     'index.html', 
     'style.css',
     'app.js', 
     'DROMALOGOTRANS.png', 
     'RTCLOGOTRANS.png', 
+    'LEVILOGOTRANS.png',
     '1VERIFTRANS.png', 
     'QRCODETRANS.png', 
     'CONFIRMGRENTRANS.png',

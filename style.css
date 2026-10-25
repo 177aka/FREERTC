@@ -3,7 +3,6 @@
     margin: 0; 
     padding: 0; 
     -webkit-tap-highlight-color: transparent;
-
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
@@ -39,14 +38,18 @@ img {
 body { 
     background: #044499; 
     height: 100vh; 
+    width: 100vw;
     display: flex; 
     flex-direction: column; 
     overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    transition: background 0.3s ease;
 }
 
 .bg-container {
-    position: absolute;
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     z-index: 0;
@@ -54,15 +57,20 @@ body {
     pointer-events: none;
 }
 
-.bg-container {
+/* --- Barre blanche opaque tout en haut (sans effet de fondu) --- */
+.bg-container::before {
+    content: '';
     position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    height: 100%;
-    z-index: 0;
-    overflow: hidden;
+    height: 25px;
+    background: #ffffff;
+    z-index: 5;
     pointer-events: none;
 }
 
+/* --- Motif RTC d'origine --- */
 .bg-pattern {
     position: absolute; 
     width: 160%; 
@@ -70,17 +78,29 @@ body {
     top: -20%;
     left: -20%;
     background-image: url('RTCLOGOTRANS.png');
-
     background-size: 230px 180px; 
-
     background-repeat: repeat;
     filter: brightness(0) invert(1); 
-
     transform: rotate(1deg) skewX(5deg); 
-    opacity: 0.75; 
-    
+    opacity: 0.80; 
     -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1) 35%, rgba(0,0,0,0) 90%);
     mask-image: linear-gradient(to top, rgba(0,0,0,1) 35%, rgba(0,0,0,0) 90%);
+}
+
+body.mode-levi {
+    background: #d5d8de !important;
+}
+
+body.mode-levi .bg-pattern {
+    background-image: url('LEVILOGOTRANS.png') !important;
+    filter: none !important;
+    background-size: 180px 150px !important;
+    background-position: 0 0, 90px 75px !important;
+    background-repeat: repeat !important;
+    opacity: 1 !important;
+    transform: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
 }
 
 .header {
@@ -88,20 +108,27 @@ body {
     z-index: 10;
     max-width: 410px;
     width: 100%;
-    padding: 14px 16px;
+    padding: 35px 16px 10px 16px; /* Descendu légèrement plus bas */
     margin: 0 auto;
 }
 
+/* Bouton retour plus petit et élégant */
 .back-btn {
     background: white;
     border: none;
-    width: 42px;
-    height: 42px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.back-btn svg {
+    width: 18px;
+    height: 18px;
 }
 
 .animation-zone { 
@@ -125,11 +152,9 @@ body {
     justify-content: center;
 }
 
-
-
 .center-circle img, 
 .droma-logo {
-    width: 93% !important; /* Réduit de 62% à 52% pour exactitude visuelle */
+    width: 87% !important;
     height: auto !important;
     object-fit: contain;
 }
@@ -172,7 +197,6 @@ body {
     overflow: hidden;
 }
 
-/* --- Badge Forme Pilule Allongée --- */
 .header-ticket { 
     display: flex; 
     align-items: center;
@@ -182,7 +206,7 @@ body {
     position: relative;
     border-top-left-radius: 11px;
     border-top-right-radius: 11px;
-    overflow: hidden; /* Empêche les débordements de bordure */
+    overflow: hidden;
 }
 
 .verif-badge {
@@ -190,35 +214,22 @@ body {
     align-items: center;
     justify-content: center;
     background: #ffffff;
-    padding: 0 10px !important;
-    
-    /* Bordure bleu foncé 100% opaque */
+    padding: 0 8px !important;
     border-right: 1.5px solid #305890 !important;
     border-bottom: 1.5px solid #305890 !important;
-    
-    /* Arrondi exact */
     border-bottom-right-radius: 12px !important;
-    
     box-sizing: border-box;
     height: 100%;
     min-width: 46px;
-    overflow: visible !important; /* Permet au logo zoomé d'être bien visible */
+    overflow: hidden !important;
 }
 
 .verif-badge img {
-    height: 22px !important;       /* Hauteur de base augmentée */
+    height: 20px !important;
     width: auto !important;
-    max-height: none !important;   /* Bloque les restrictions mobiles */
-    max-width: none !important;
+    max-height: 24px !important;
     display: block;
     object-fit: contain;
-    transform: scale(1.3);         /* Agrandit le logo à l'intérieur */
-}
-
-@media (max-width: 480px) {
-    .verif-badge img {
-        height: 19px !important;
-    }
 }
 
 .ticket-title-wrapper {
@@ -232,7 +243,7 @@ body {
 
 .ticket-title {
     color: #111111; 
-    font-weight: 500 !important; /* Plus fin comme le vrai */
+    font-weight: 500 !important;
     font-size: 16px !important;
     width: 100%;
     text-align: right;
@@ -257,8 +268,9 @@ body {
     align-items: center; 
     margin-bottom: 2px; 
     font-size: 14px;
-    font-weight: 400 !important; /* Texte normal non gras */
+    font-weight: 400 !important;
 }
+
 .cal-icon {
     width: 18px !important;
     height: 18px !important;
@@ -271,7 +283,6 @@ body {
 }
 
 .text-black { color: #000000; }
-
 .text-bold { font-weight: 700; }
 
 .expiration-style {
@@ -291,11 +302,13 @@ body {
 .rtc-card {
     background: #CDD4E2;
 }
+
 .rtc-header-row {
     display: flex;
     align-items: stretch;
     position: relative;
 }
+
 .rtc-timer-wrapper {
     background: white;
     border-radius: 0 0 12px 0;
@@ -305,6 +318,7 @@ body {
     align-items: center;
     justify-content: center;
 }
+
 .rtc-timer {
     color: #338A1C;
     font-weight: 800;
@@ -339,6 +353,7 @@ body {
     flex-direction: column;
     align-items: center;
 }
+
 .rtc-date {
     display: flex;
     align-items: center;
@@ -348,7 +363,7 @@ body {
 }
 
 .rtc-serial {
-    font-weight: 700 !important; /* Semi-gras propre au lieu de 900 */
+    font-weight: 700 !important;
     font-size: 21px !important;
     color: #000000;
     letter-spacing: 0.5px;
@@ -378,6 +393,7 @@ body {
     justify-content: space-between; 
     align-items: center; 
 }
+
 .dates {
     display: flex;
     flex-direction: column;
@@ -404,4 +420,204 @@ body {
 
 .app-screen.active {
     display: flex;
+}
+
+#screen-settings {
+    background: #f4f6f9 !important;
+    padding: 20px 16px !important;
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+}
+
+#screen-settings.active {
+    display: flex;
+}
+
+.settings-container {
+    max-width: 400px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 40px;
+}
+
+#screen-settings h2 {
+    text-align: center;
+    color: #044499;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+}
+
+.settings-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #555c68;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Sélecteur stylisé */
+.select-wrapper {
+    position: relative;
+    background: #f0f3f8;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.settings-select {
+    width: 100%;
+    padding: 12px 14px;
+    background: transparent;
+    border: none;
+    font-size: 15px;
+    font-weight: 500;
+    color: #1a1a1a;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.select-wrapper::after {
+    content: '▼';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    color: #666;
+    pointer-events: none;
+}
+
+/* Bouton fichier personnalisé */
+.custom-file-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #eef2f9;
+    color: #044499;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.custom-file-btn:hover {
+    background: #dfe7f5;
+}
+
+/* Aperçu d'image */
+.preview-container {
+    width: 100%;
+    max-height: 140px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#image-preview {
+    width: 100%;
+    max-height: 140px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+/* Sélecteurs de couleurs en ligne */
+.color-pickers-row {
+    display: flex;
+    gap: 12px;
+}
+
+.color-picker-group {
+    flex: 1;
+    background: #f8f9fc;
+    padding: 10px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 500;
+    color: #444;
+}
+
+.color-btn-wrapper {
+    position: relative;
+    width: 32px;
+    height: 32px;
+}
+
+.pipette-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    cursor: pointer;
+}
+
+.color-btn-wrapper input[type="color"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Boutons d'actions du bas */
+.settings-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.btn-action {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.2s;
+}
+
+.btn-primary {
+    background: #044499;
+    color: white;
+    box-shadow: 0 4px 12px rgba(4, 68, 153, 0.25);
+}
+
+.btn-danger {
+    background: #fff0f0;
+    color: #e53e3e;
+    border: 1px solid #ffd8d8;
+}
+
+.btn-action:active {
+    opacity: 0.85;
 }

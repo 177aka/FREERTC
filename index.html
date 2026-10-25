@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>RTC Nomade</title>
-    <body style="background-color: #044499;"></body>
     <style>
         .mobile-color-input {
             position: absolute;
@@ -29,7 +28,7 @@
     <script src="app.js" defer></script>
 </head>
 
-<body>
+<body style="background-color: #044499;">
 
     <div id="screen-ticket" class="app-screen active">
         <div class="bg-container">
@@ -63,7 +62,7 @@
                         <img src="1VERIFTRANS.png" alt="Badge">
                     </div>
                     <div class="ticket-title-wrapper">
-                        <div class="ticket-title">RTC - 1 passage - Général</div>
+                        <div class="ticket-title" id="main-ticket-title">RTC - 1 passage - Général</div>
                     </div>
                 </div>
                 
@@ -91,7 +90,7 @@
                         <div class="rtc-timer" id="timer-display">0:00</div>
                     </div>
                     <div class="rtc-title-wrapper-centered">
-                        <div class="rtc-title">Réservé au RTC</div>
+                        <div class="rtc-title" id="footer-ticket-title">Réservé au RTC</div>
                     </div>
                 </div>
                 <div class="rtc-body">
@@ -109,31 +108,61 @@
         </main>
     </div>
     
-    <div id="screen-settings" class="app-screen" style="background: white; padding: 20px; overflow-y: auto;">
-        <div style="max-width: 400px; margin: 0 auto; padding: 20px;">
-            <div style="font-size: 20px; font-weight: bold; color: #023177; text-align: center; margin-bottom: 20px;">CONFIGURATION</div>
-            <input type="file" id="image-upload" accept="image*" style="width: 100%; margin-bottom: 15px;">
+    <div id="screen-settings" class="app-screen">
+    <div class="settings-container">
+        <h2>CONFIGURATION</h2>
+
+        <!-- Section Réseau -->
+        <div class="settings-card">
+            <label for="network-select" class="settings-label">Réseau de transport</label>
+            <div class="select-wrapper">
+                <select id="network-select" class="settings-select">
+                    <option value="rtc">RTC (Québec)</option>
+                    <option value="levi">STLévis (Lévis)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Section Image & Bulles -->
+        <div class="settings-card">
+            <label class="settings-label">Personnalisation des bulles</label>
+            <div class="file-upload-wrapper">
+                <label for="image-upload" class="custom-file-btn">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    Importer une image
+                </label>
+                <input type="file" id="image-upload" accept="image/*" style="display: none;">
+            </div>
             
-            <div id="preview-area" style="width: 100%; height: 200px; background: #eee; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 20px;">
-                <img id="image-preview" style="max-width: 100%; max-height: 100%; display: none;">
+            <div class="preview-container">
+                <img id="image-preview" src="" alt="Aperçu" style="display: none;">
             </div>
 
-            <div class="buttons-container-pipette" style="display: flex; gap: 10px; margin-bottom: 20px; position: relative;">
-                <div class="btn-wrapper">
-                    <button type="button" id="btn-pipette-1" style="width: 100%; padding: 12px; background: #00ff66; border: none; border-radius: 8px; font-weight: bold; position: relative; z-index: 0;">Couleur Rond 1</button>
-                    <input type="color" id="input-color-1" class="mobile-color-input">
+            <div class="color-pickers-row">
+                <div class="color-picker-group">
+                    <span>Bulle 1</span>
+                    <div class="color-btn-wrapper">
+                        <button id="btn-pipette-1" class="pipette-circle"></button>
+                        <input type="color" id="input-color-1" value="#00ff66">
+                    </div>
                 </div>
-                
-                <div class="btn-wrapper">
-                    <button type="button" id="btn-pipette-2" style="width: 100%; padding: 12px; background: #381d18; color: white; border: none; border-radius: 8px; font-weight: bold; position: relative; z-index: 0;">Couleur Rond 2</button>
-                    <input type="color" id="input-color-2" class="mobile-color-input">
+                <div class="color-picker-group">
+                    <span>Bulle 2</span>
+                    <div class="color-btn-wrapper">
+                        <button id="btn-pipette-2" class="pipette-circle"></button>
+                        <input type="color" id="input-color-2" value="#381d18">
+                    </div>
                 </div>
             </div>
-            
-            <button id="btn-clear-cache" style="width: 100%; padding: 10px; background: #ff4d4d; color: white; border: none; border-radius: 8px; margin-bottom: 10px;">Vider le cache</button>  
-            <button id="btn-back-to-ticket" style="width: 100%; padding: 15px; background: #023177; color: white; border: none; border-radius: 8px; font-weight: bold;">Confirmer et Retourner</button>
+        </div>
+
+        <!-- Actions -->
+        <div class="settings-actions">
+            <button id="btn-clear-cache" class="btn-action btn-danger">Réinitialiser l'application</button>
+            <button id="btn-back-to-ticket" class="btn-action btn-primary">Enregistrer et Retourner</button>
         </div>
     </div>
+</div>
 
 </body>
 </html>
