@@ -1,4 +1,4 @@
-const CACHE = 'rtc-nomade-v9';
+const CACHE = 'rtc-nomade-v10';
 const ASSETS = [
     './',
     './index.html',
@@ -30,7 +30,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
     const url = new URL(e.request.url);
-    
+
     if (url.hostname.includes('script.google.com')) {
         return;
     }

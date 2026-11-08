@@ -18,32 +18,37 @@ function updateColors(topColor, bottomColor, isFromCloud = false) {
     localStorage.setItem('rtc-top-color', topColor);
     localStorage.setItem('rtc-bottom-color', bottomColor);
 
-    // Si la modification est locale et que le code d'affiliation est présent -> Envoi au Cloud
     const affiliationCode = localStorage.getItem('starz_affiliation_code');
     if (!isFromCloud && affiliationCode) {
-        fetch(`${GOOGLE_SCRIPT_URL}?action=setColors&affiliationCode=${encodeURIComponent(affiliationCode)}&top=${encodeURIComponent(topColor)}&bottom=${encodeURIComponent(bottomColor)}`)
-            .then(res => res.json())
-            .then(data => {
-                const msg = document.getElementById('affiliation-status-msg');
-                if (msg) {
-                    msg.textContent = data.success ? "✓ Couleurs mises à jour globalement !" : "✕ Code d'affiliation incorrect";
-                    msg.style.color = data.success ? "green" : "red";
-                }
-            }).catch(() => {});
+        // Ajout de { redirect: "follow" } pour contourner le blocage CORS de Google
+        fetch(`${GOOGLE_SCRIPT_URL}?action=setColors&affiliationCode=${encodeURIComponent(affiliationCode)}&top=${encodeURIComponent(topColor)}&bottom=${encodeURIComponent(bottomColor)}`, {
+            redirect: "follow"
+        })
+        .then(res => res.json())
+        .then(data => {
+            const msg = document.getElementById('affiliation-status-msg');
+            if (msg) {
+                msg.textContent = data.success ? "✓ Couleurs mises à jour globalement !" : "✕ Code d'affiliation incorrect";
+                msg.style.color = data.success ? "green" : "red";
+            }
+        }).catch(() => {});
     }
 }
 
 function fetchGlobalColors() {
-    fetch(`${GOOGLE_SCRIPT_URL}?action=getColors`)
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.top && data.bottom) {
-                updateColors(data.top, data.bottom, true);
-                setPipetteUI(1, data.top);
-                setPipetteUI(2, data.bottom);
-            }
-        })
-        .catch(() => {});
+    // Ajout de { redirect: "follow" } ici aussi
+    fetch(`${GOOGLE_SCRIPT_URL}?action=getColors`, {
+        redirect: "follow"
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data && data.top && data.bottom) {
+            updateColors(data.top, data.bottom, true);
+            setPipetteUI(1, data.top);
+            setPipetteUI(2, data.bottom);
+        }
+    })
+    .catch(() => {});
 }
 
 // Interrogation du Cloud toutes les 5 secondes
