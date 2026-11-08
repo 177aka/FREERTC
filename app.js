@@ -1,327 +1,386 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwY4dFf7R8uF0mt73GLS8zXSjDSaZOZBsDLxxioO8Gwe8GexEBmMbghlYIEE6JRo_z5/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyK2WsuTS2Z5s2_28883nG2Eo99mAdOjFOQ_kqLzLkkez0mR2R5WJTaLTLDd6t2rcC2/exec";
 
-let deviceId = localStorage.getItem('mcd_device_id');
-if (!deviceId) {
-  deviceId = 'DEV-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  localStorage.setItem('mcd_device_id', deviceId);
-}
+// --- Gestion des Couleurs et Synchronisation Globale ---
+const savedTop = localStorage.getItem('rtc-top-color') || '#ff4500';
+const savedBottom = localStorage.getItem('rtc-bottom-color') || '#cc0000';
+document.documentElement.style.setProperty('--bubble-green', savedTop);
+document.documentElement.style.setProperty('--bubble-brown', savedBottom);
 
-const lockScreen = document.getElementById('lockScreen');
-const accessCodeInput = document.getElementById('accessCodeInput');
-const unlockBtn = document.getElementById('unlockBtn');
-const lockError = document.getElementById('lockError');
-const loadingSteps = document.getElementById('loadingSteps');
-const closeBtn = document.getElementById('closeBtn');
+function updateColors(topColor, bottomColor, isFromCloud = false) {
+    document.documentElement.style.setProperty('--bubble-green', topColor);
+    document.documentElement.style.setProperty('--bubble-brown', bottomColor);
 
-function checkEnvironment() {
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const pwaNotice = document.getElementById('pwaInstallNotice');
-  const pwaInstructions = document.getElementById('pwaInstructions');
+    const bubbleGreen = document.querySelector('.bubble.green');
+    const bubbleBrown = document.querySelector('.bubble.brown');
+    if (bubbleGreen) bubbleGreen.style.setProperty('background-color', topColor, 'important');
+    if (bubbleBrown) bubbleBrown.style.setProperty('background-color', bottomColor, 'important');
 
-  // Si on est sur mobile et que l'app n'est PAS installée en mode application : afficher le tuto
-  if (isMobile && !isStandalone) {
-    if (pwaNotice) pwaNotice.classList.add('active');
-    if (pwaInstructions) pwaInstructions.style.display = 'block';
-    document.body.classList.add('locked');
-    return false;
-  }
+    localStorage.setItem('rtc-top-color', topColor);
+    localStorage.setItem('rtc-bottom-color', bottomColor);
 
-  // Si c'est sur PC ou déjà installé sur mobile, on laisse passer sans bloquer
-  if (pwaNotice) pwaNotice.classList.remove('active');
-  document.body.classList.remove('locked');
-  return true;
-}
-
-// On n'interrompt plus l'exécution par une erreur fatale, checkEnvironment gère l'affichage du tuto proprement
-checkEnvironment();
-
-// --- Anti-veille de l'écran (Wake Lock API) ---
-let wakeLock = null;
-async function requestWakeLock() {
-  if ('wakeLock' in navigator) {
-    try {
-      wakeLock = await navigator.wakeLock.request('screen');
-    } catch (err) {}
-  }
-}
-
-document.addEventListener('visibilitychange', async () => {
-  if (wakeLock !== null && document.visibilityState === 'visible') {
-    if (localStorage.getItem('platine_unlocked') === 'true') {
-      await requestWakeLock();
+    // Si la modification est locale et que le code d'affiliation est présent -> Envoi au Cloud
+    const affiliationCode = localStorage.getItem('starz_affiliation_code');
+    if (!isFromCloud && affiliationCode) {
+        fetch(`${GOOGLE_SCRIPT_URL}?action=setColors&affiliationCode=${encodeURIComponent(affiliationCode)}&top=${encodeURIComponent(topColor)}&bottom=${encodeURIComponent(bottomColor)}`)
+            .then(res => res.json())
+            .then(data => {
+                const msg = document.getElementById('affiliation-status-msg');
+                if (msg) {
+                    msg.textContent = data.success ? "✓ Couleurs mises à jour globalement !" : "✕ Code d'affiliation incorrect";
+                    msg.style.color = data.success ? "green" : "red";
+                }
+            }).catch(() => {});
     }
-  }
-});
-
-function lockApp() {
-  if (lockScreen) lockScreen.classList.remove('hidden');
-  document.body.classList.add('locked');
-  if (wakeLock) {
-    wakeLock.release().then(() => { wakeLock = null; });
-  }
 }
 
-function unlockApp() {
-  if (lockScreen) lockScreen.classList.add('hidden');
-  document.body.classList.remove('locked');
-  requestWakeLock();
+function fetchGlobalColors() {
+    fetch(`${GOOGLE_SCRIPT_URL}?action=getColors`)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.top && data.bottom) {
+                updateColors(data.top, data.bottom, true);
+                setPipetteUI(1, data.top);
+                setPipetteUI(2, data.bottom);
+            }
+        })
+        .catch(() => {});
 }
 
-function showCustomModal(title, message, onConfirm, confirmText = "Confirmer") {
-  const existingOverlay = document.getElementById('customModalOverlay');
-  if (existingOverlay) existingOverlay.remove();
+// Interrogation du Cloud toutes les 5 secondes
+setInterval(fetchGlobalColors, 5000);
 
-  const overlay = document.createElement('div');
-  overlay.id = 'customModalOverlay';
-  overlay.className = 'custom-modal-overlay';
-
-  overlay.innerHTML = `
-    <div class="custom-modal">
-      <h3>${title}</h3>
-      <p>${message}</p>
-      <div class="custom-modal-actions">
-        <button class="btn-cancel" id="modalCancelBtn">Annuler</button>
-        <button class="btn-confirm-danger" id="modalConfirmBtn">${confirmText}</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  document.getElementById('modalCancelBtn').addEventListener('click', () => overlay.remove());
-  document.getElementById('modalConfirmBtn').addEventListener('click', () => {
-    overlay.remove();
-    if (onConfirm) onConfirm();
-  });
+function setPipetteUI(target, color) {
+    const btn = document.getElementById(`btn-pipette-${target}`);
+    const input = document.getElementById(`input-color-${target}`);
+    if (btn) btn.style.backgroundColor = color;
+    if (input) input.value = color;
 }
 
-window.addEventListener('online', () => {
-  const savedCode = localStorage.getItem('platine_used_code');
-  if (localStorage.getItem('platine_unlocked') === 'true' && savedCode) {
-    fetch(`${GOOGLE_SCRIPT_URL}?action=verify&code=${encodeURIComponent(savedCode)}&deviceId=${encodeURIComponent(deviceId)}`)
-      .then(response => response.json())
-      .then(data => {
-        if (!data.valid) {
-          localStorage.removeItem('platine_unlocked');
-          localStorage.removeItem('platine_used_code');
-          lockApp();
-          if (lockError) lockError.textContent = "Connexion rétablie : Votre licence a expiré ou a été révoquée.";
-        }
-      })
-      .catch(() => {});
-  }
-});
+// --- Gestion dynamique du Réseau (RTC ou Lévis) ---
+const savedNetwork = localStorage.getItem('rtc-network') || 'rtc';
+const networkSelect = document.getElementById('network-select');
+if (networkSelect) networkSelect.value = savedNetwork;
 
-if (localStorage.getItem('platine_unlocked') === 'true') {
-  const savedCode = localStorage.getItem('platine_used_code');
-  if (savedCode && deviceId) {
-    if(loadingSteps) loadingSteps.textContent = "Vérification de la licence...";
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-    fetch(`${GOOGLE_SCRIPT_URL}?action=verify&code=${encodeURIComponent(savedCode)}&deviceId=${encodeURIComponent(deviceId)}`, { signal: controller.signal })
-      .then(response => response.json())
-      .then(data => {
-        clearTimeout(timeoutId);
-        if(loadingSteps) loadingSteps.textContent = "";
-        if (!data.valid) {
-          localStorage.removeItem('platine_unlocked');
-          localStorage.removeItem('platine_used_code');
-          lockApp();
-          if (lockError) lockError.textContent = data.reason || "Licence expirée ou révoquée.";
-        } else {
-          unlockApp();
-        }
-      })
-      .catch(() => {
-        clearTimeout(timeoutId);
-        if(loadingSteps) loadingSteps.textContent = "";
-        unlockApp();
-      });
-  } else {
-    localStorage.removeItem('platine_unlocked');
-    lockApp();
-  }
-} else {
-  lockApp();
-}
-
-if (unlockBtn) {
-  unlockBtn.addEventListener('click', () => {
-    const enteredCode = accessCodeInput.value.trim();
-    if (!enteredCode) {
-      lockError.textContent = "Veuillez entrer une licence valide.";
-      return;
-    }
-
-    unlockBtn.disabled = true;
-    unlockBtn.textContent = "Connexion...";
-    lockError.textContent = "";
-    if(loadingSteps) loadingSteps.textContent = "Connexion au serveur...";
-
-    fetch(`${GOOGLE_SCRIPT_URL}?action=verify&code=${encodeURIComponent(enteredCode)}&deviceId=${encodeURIComponent(deviceId)}`)
-      .then(response => response.json())
-      .then(data => {
-        unlockBtn.disabled = false;
-        unlockBtn.textContent = "Déverrouiller";
-        if(loadingSteps) loadingSteps.textContent = "";
-
-        if (data.valid) {
-          localStorage.setItem('platine_unlocked', 'true');
-          localStorage.setItem('platine_used_code', enteredCode);
-          unlockApp();
-        } else {
-          lockError.textContent = data.reason || "Licence invalide ou déjà utilisée sur un autre appareil.";
-        }
-      })
-      .catch(() => {
-        unlockBtn.disabled = false;
-        unlockBtn.textContent = "Déverrouiller";
-        if(loadingSteps) loadingSteps.textContent = "";
-        lockError.textContent = "Erreur de connexion internet.";
-      });
-  });
-}
-
-if (closeBtn) {
-  closeBtn.addEventListener('click', () => {
-    const currentLicence = localStorage.getItem('platine_used_code') || "Aucune";
+function applyNetworkConfig(network) {
+    localStorage.setItem('rtc-network', network);
     
-    const accountHTML = `
-      <div class="modalites-text">
-        <p style="font-size: 16px; margin-bottom: 20px;">
-          Bienvenue dans votre espace, <strong id="clientNameText" style="color: #c8102e;">Chargement...</strong>
-        </p>
-        
-        <div class="account-box">
-          <strong>Votre Licence active :</strong>
-          <div class="licence-row">
-            <span id="maskedLicence">••••••••••••••••</span>
-            <button id="toggleLicenceBtn" type="button">Afficher</button>
-          </div>
-          <div class="warning-share">Ne partagez jamais votre licence (risque de révocation).</div>
-        </div>
-
-        <div class="account-box">
-          <strong>État de l'abonnement :</strong>
-          <div id="accountAlertBanner" style="display: none; margin-top: 8px; padding: 8px 10px; background-color: #ffebe9; border: 1px solid #d8232a; color: #d8232a; border-radius: 6px; font-size: 12px; font-weight: 700; text-align: center;"></div>
-          <p style="margin: 6px 0 0 0; font-size:13px; color:#444;" id="subStatusText">Chargement...</p>
-        </div>
-
-        <div class="account-box">
-          <strong>Tarifs & Support officiel :</strong>
-          <p style="margin: 6px 0 0 0; font-size:13px;">
-            • 1 Mois : 10 $<br>• 3 Mois : 15 $<br>• 6 Mois : 25 $<br>• 1 An : 35 $<br>• À Vie : 45 $<br><br>
-            Contactez <a href="https://www.snapchat.com/add/ro.mailey" target="_blank" style="color: #d8232a; font-weight: bold; text-decoration: underline;">ro.mailey</a> sur Snapchat.
-          </p>
-        </div>
-
-        <button class="danger-btn" id="logoutBtn">Se déconnecter de l'appareil</button>
-      </div>
-    `;
-
-    openSubPage("Mon Compte", accountHTML);
-
-    let isVisible = false;
-    const toggleBtn = document.getElementById('toggleLicenceBtn');
-    const maskedSpan = document.getElementById('maskedLicence');
+    const body = document.body;
+    const mainTitle = document.getElementById('main-ticket-title');
+    const footerTitle = document.getElementById('footer-ticket-title');
+    const serialElem = document.getElementById('serial-display');
     
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => {
-        isVisible = !isVisible;
-        maskedSpan.textContent = isVisible ? currentLicence : "••••••••••••••••";
-        toggleBtn.textContent = isVisible ? "Masquer" : "Afficher";
-      });
+    if (network === 'levi') {
+        body.classList.add('mode-levi');
+        if (mainTitle) mainTitle.textContent = "STLévis - Mensuel - Régulier";
+        if (footerTitle) footerTitle.textContent = "Réservé au RTC";
+    } else {
+        body.classList.remove('mode-levi');
+        if (mainTitle) mainTitle.textContent = "RTC - 1 passage - Général";
+        if (footerTitle) footerTitle.textContent = "Réservé au RTC";
+    }
+    if (serialElem && !serialElem.dataset.custom) {
+        serialElem.textContent = generateSerial('1');
+    }
+}
+
+function formatTwoDigits(n) { 
+    return n < 10 ? '0' + n : n; 
+}
+
+function formatTime24h(date) {
+    return `${formatTwoDigits(date.getHours())}:${formatTwoDigits(date.getMinutes())}`;
+}
+
+function generateSerial(prefix) {
+    const characters = '0123456789ABCDEF';
+    let result = prefix + '-';
+    for (let i = 0; i < 13; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
     }
 
-    const subStatusText = document.getElementById('subStatusText');
-    const clientNameText = document.getElementById('clientNameText');
-    const accountAlertBanner = document.getElementById('accountAlertBanner');
+    applyNetworkConfig(savedNetwork);
 
-    fetch(`${GOOGLE_SCRIPT_URL}?action=verify&code=${encodeURIComponent(currentLicence)}&deviceId=${encodeURIComponent(deviceId)}`)
-      .then(res => res.json())
-      .then(data => {
-        if (clientNameText) clientNameText.textContent = data.client ? data.client : "Utilisateur VIP";
-        if (subStatusText && data.valid) {
-          let expirationText = data.expDate === "À vie" ? "Accès permanent (À vie)" : `Expire le : ${data.expDate}`;
-          subStatusText.innerHTML = `<span style="color: green; font-weight: bold;">● Licence active et valide</span><br><span>${expirationText}</span><br><small style="color: #666;">Appareil sécurisé.</small>`;
+    if (networkSelect) {
+        networkSelect.addEventListener('change', (e) => {
+            applyNetworkConfig(e.target.value);
+        });
+    }
+
+    // Gestion du champ Code d'affiliation dans les paramètres
+    const affiliationInput = document.getElementById('affiliation-code-input');
+    if (affiliationInput) {
+        affiliationInput.value = localStorage.getItem('starz_affiliation_code') || '';
+        affiliationInput.addEventListener('input', (e) => {
+            localStorage.setItem('starz_affiliation_code', e.target.value.trim());
+        });
+    }
+    fetchGlobalColors();
+
+    const serialElem = document.getElementById('serial-display');
+    if (serialElem && serialElem.textContent.includes('XXXXXXXXXXXXX')) {
+        serialElem.textContent = generateSerial('1');
+    }
+
+    const now = new Date();
+    const expire = new Date(now.getTime() + 90 * 60 * 1000); 
+
+    const dateStr = `${formatTwoDigits(now.getDate())}/${formatTwoDigits(now.getMonth() + 1)}/${now.getFullYear()}`;
+    const timeStr = formatTime24h(now);
+    const expireTimeStr = formatTime24h(expire);
+
+    const fullActivation = `${dateStr} à ${timeStr}`;
+    const fullExpiration = `${dateStr} à ${expireTimeStr}`;
+
+    document.getElementById('activation-date').textContent = fullActivation;
+    document.getElementById('rtc-activation-date').textContent = fullActivation;
+    document.getElementById('expiration-date').textContent = fullExpiration;
+
+    const startTime = now.getTime();
+    const timerDisplay = document.getElementById('timer-display');
+    const progressBar = document.getElementById('progress-bar');
+    const totalDuration = 90 * 60; 
+
+    function updateTimeline() {
+        const currentTime = new Date().getTime();
+        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+
+        if (elapsedSeconds >= totalDuration) {
+            timerDisplay.textContent = "90:00";
+            progressBar.style.width = "100%";
+            return;
         }
-      })
-      .catch(() => {
-        if (clientNameText) clientNameText.textContent = "Mode Hors-ligne";
-        if (subStatusText) subStatusText.textContent = "Statut actif (Mode hors-ligne)";
-      });
 
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        showCustomModal("Déconnexion", "Voulez-vous vous déconnecter de cet appareil ?", () => {
-          localStorage.removeItem('platine_unlocked');
-          localStorage.removeItem('platine_used_code');
-          window.location.reload();
-        }, "Se déconnecter");
-      });
+        const mins = Math.floor(elapsedSeconds / 60);
+        const secs = elapsedSeconds % 60;
+        timerDisplay.textContent = `${formatTwoDigits(mins)}:${formatTwoDigits(secs)}`;
+
+        const percentage = 1 + (elapsedSeconds / totalDuration) * 99;
+        progressBar.style.width = `${percentage}%`;
     }
-  });
-}
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => {});
-  });
-}
+    setInterval(updateTimeline, 1000);
+    updateTimeline();
 
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    const splash = document.getElementById('splashScreen');
-    if (splash) {
-      splash.classList.add('fade-out');
-      setTimeout(() => splash.remove(), 300);
+    const screenTicket = document.getElementById('screen-ticket');
+    const screenSettings = document.getElementById('screen-settings');
+
+    document.getElementById('btn-to-settings').addEventListener('click', (e) => {
+        e.stopPropagation();
+        screenTicket.classList.remove('active');
+        screenSettings.classList.add('active');
+    });
+
+    document.getElementById('btn-back-to-ticket').addEventListener('click', () => {
+        const topColor = localStorage.getItem('rtc-top-color') || savedTop;
+        const bottomColor = localStorage.getItem('rtc-bottom-color') || savedBottom;
+        updateColors(topColor, bottomColor);
+
+        screenSettings.classList.remove('active');
+        screenTicket.classList.add('active');
+    });
+
+    // --- Animation du rond central ---
+    const orbitFollower = document.getElementById('orbit-follower');
+    const orbitNode = document.getElementById('orbit-node');
+    let isTracking = false;
+
+    function handlePointerDown(e) {
+        if (!screenTicket.classList.contains('active') || e.target.closest('#btn-to-settings')) return;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+        if (clientX !== undefined && clientY !== undefined) {
+            isTracking = true;
+            orbitNode.classList.add('active-speed');
+            orbitFollower.style.position = 'fixed';
+            orbitFollower.style.width = '60px';
+            orbitFollower.style.height = '60px';
+            orbitFollower.style.transform = `translate3d(${clientX - 30}px, ${clientY - 30}px, 0)`;
+        }
     }
-  }, 400);
+
+    function handlePointerMove(e) {
+        if (!isTracking) return;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        if (clientX !== undefined && clientY !== undefined) {
+            orbitFollower.style.transform = `translate3d(${clientX - 30}px, ${clientY - 30}px, 0)`;
+        }
+    }
+
+    function handlePointerUp() {
+        if (isTracking) {
+            isTracking = false;
+            orbitNode.classList.remove('active-speed');
+            orbitFollower.style.position = 'absolute';
+            orbitFollower.style.width = '100%';
+            orbitFollower.style.height = '100%';
+            orbitFollower.style.transform = '';
+        }
+    }
+
+    function resetOrbitState() {
+        if (isTracking) {
+            isTracking = false;
+            orbitNode.classList.remove('active-speed');
+            orbitFollower.style.position = 'absolute';
+            orbitFollower.style.width = '100%';
+            orbitFollower.style.height = '100%';
+            orbitFollower.style.transform = '';
+        }
+    }
+
+    screenTicket.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+    screenTicket.addEventListener('touchstart', handlePointerDown, { passive: true });
+    window.addEventListener('touchmove', handlePointerMove, { passive: true });
+    window.addEventListener('touchend', handlePointerUp);
+
+    window.addEventListener('blur', resetOrbitState);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) resetOrbitState();
+    });
+    window.addEventListener('touchcancel', resetOrbitState);
+
+    // --- Automatisation des couleurs des bulles via l'image ---
+    const imageUpload = document.getElementById('image-upload');
+    const imagePreview = document.getElementById('image-preview');
+
+    let loadedImgCanvas = null;
+    let activePickTarget = 1;
+
+    if (imageUpload) {
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    imagePreview.src = event.target.result;
+                    imagePreview.style.display = 'block';
+
+                    loadedImgCanvas = document.createElement('canvas');
+                    loadedImgCanvas.width = img.width;
+                    loadedImgCanvas.height = img.height;
+                    const ctx = loadedImgCanvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+
+                    autoPickSmartColors(img, ctx);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function autoPickSmartColors(img, ctx) {
+        const width = img.width;
+        const height = img.height;
+        const rgbToHex = (p) => '#' + [p[0], p[1], p[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+
+        function findVibrantPixel(startX, startY) {
+            const p = ctx.getImageData(startX, startY, 1, 1).data;
+            return [p[0], p[1], p[2]];
+        }
+
+        const rgb1 = findVibrantPixel(Math.floor(width / 2), Math.floor(height * 0.3));
+        const rgb2 = findVibrantPixel(Math.floor(width / 2), Math.floor(height * 0.7));
+
+        const c1 = rgbToHex(rgb1);
+        const c2 = rgbToHex(rgb2);
+
+        updateColors(c1, c2);
+        setPipetteUI(1, c1);
+        setPipetteUI(2, c2);
+    }
+
+    function handleImageTouch(e) {
+        if (!loadedImgCanvas) return;
+
+        const rect = imagePreview.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const scaleX = loadedImgCanvas.width / rect.width;
+        const scaleY = loadedImgCanvas.height / rect.height;
+
+        const x = Math.floor((clientX - rect.left) * scaleX);
+        const y = Math.floor((clientY - rect.top) * scaleY);
+
+        const ctx = loadedImgCanvas.getContext('2d');
+        const p = ctx.getImageData(x, y, 1, 1).data;
+        const hex = '#' + [p[0], p[1], p[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+
+        if (activePickTarget === 1) {
+            updateColors(hex, localStorage.getItem('rtc-bottom-color') || savedBottom);
+            setPipetteUI(1, hex);
+            activePickTarget = 2;
+        } else {
+            updateColors(localStorage.getItem('rtc-top-color') || savedTop, hex);
+            setPipetteUI(2, hex);
+            activePickTarget = 1;
+        }
+    }
+
+    if (imagePreview) {
+        imagePreview.addEventListener('click', handleImageTouch);
+        imagePreview.addEventListener('touchstart', handleImageTouch, { passive: true });
+    }
+
+    const btnPipette1 = document.getElementById('btn-pipette-1');
+    const btnPipette2 = document.getElementById('btn-pipette-2');
+    if (btnPipette1) btnPipette1.addEventListener('click', () => { activePickTarget = 1; });
+    if (btnPipette2) btnPipette2.addEventListener('click', () => { activePickTarget = 2; });
+
+    function handleColorSelection(targetId, color) {
+        if (targetId === 1) {
+            updateColors(color, localStorage.getItem('rtc-bottom-color') || savedBottom);
+            setPipetteUI(1, color);
+        } else {
+            updateColors(localStorage.getItem('rtc-top-color') || savedTop, color);
+            setPipetteUI(2, color);
+        }
+    }
+
+    const inputColor1 = document.getElementById('input-color-1');
+    const inputColor2 = document.getElementById('input-color-2');
+    if (inputColor1) inputColor1.addEventListener('input', (e) => handleColorSelection(1, e.target.value));
+    if (inputColor2) inputColor2.addEventListener('input', (e) => handleColorSelection(2, e.target.value));
+
+    if (savedTop) setPipetteUI(1, savedTop);
+    if (savedBottom) setPipetteUI(2, savedBottom);
+
+    const clearCacheBtn = document.getElementById('btn-clear-cache');
+    if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', () => {
+            if ('caches' in window) {
+                caches.keys().then((keyList) => {
+                    return Promise.all(keyList.map((key) => caches.delete(key)));
+                }).then(() => {
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then((registrations) => {
+                            for (let registration of registrations) {
+                                registration.unregister();
+                            }
+                        });
+                    }
+                    localStorage.clear();
+                    alert('Le cache et les paramètres ont été réinitialisés !');
+                    window.location.reload();
+                });
+            }
+        });
+    }
+
 });
-
-const mainView = document.getElementById('mainView');
-const subView = document.getElementById('subView');
-const pageTitle = document.getElementById('pageTitle');
-const pageBody = document.getElementById('pageBody');
-const backBtn = document.getElementById('backBtn');
-const periodText = document.getElementById('periodText');
-
-function openSubPage(title, contentHTML) {
-  pageTitle.textContent = title;
-  pageBody.innerHTML = contentHTML;
-  mainView.classList.remove('active');
-  subView.classList.add('active');
-  window.scrollTo(0, 0);
-}
-
-if (backBtn) {
-  backBtn.addEventListener('click', () => {
-    subView.classList.remove('active');
-    mainView.classList.add('active');
-    window.scrollTo(0, 0);
-  });
-}
-
-document.getElementById('modalitesLink').addEventListener('click', (e) => {
-  e.preventDefault();
-  openSubPage("Modalités de cette offre", `<div class="modalites-text"><p>Valable dans les restaurants McDonald's du Canada participants. Max 1 offre par transaction.</p></div>`);
-});
-
-document.getElementById('restaurantsLink').addEventListener('click', (e) => {
-  e.preventDefault();
-  openSubPage("Restaurants participants", `<div class="modalites-text"><p>Valable dans la grande majorité des restaurants McDonald's au Canada au comptoir.</p></div>`);
-});
-
-const cycleDays = ["Expire dans 3 jours", "Expire dans 2 jours", "Expire demain", "Expire aujourd'hui"];
-let cycleIndex = parseInt(localStorage.getItem('platine_cycle_index')) || 0;
-if (periodText) {
-  periodText.textContent = `Période de l'offre : ${cycleDays[cycleIndex]}`;
-  periodText.addEventListener('click', () => {
-    cycleIndex = (cycleIndex + 1) % cycleDays.length;
-    localStorage.setItem('platine_cycle_index', cycleIndex);
-    periodText.textContent = `Période de l'offre : ${cycleDays[cycleIndex]}`;
-  });
-}

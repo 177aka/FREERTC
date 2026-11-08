@@ -1,20 +1,14 @@
 {
-  "name": "McRabai",
-  "short_name": "McRabai",
+  "name": "StarzRTC",
+  "short_name": "StarzRTC",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#044499",
+  "theme_color": "#044499",
   "icons": [
     {
-      "src": "MonMcDo.png",
+      "src": "RTCLOGOTRANS.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "MonMcDo.png",
-      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
