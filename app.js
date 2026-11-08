@@ -1,11 +1,10 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQdi3ylsvLHDLTSny6__tBOtdkHVEtg985j6AvmPAQv4Lr8H_3rlp6ZswsPRHn5qtv/exec";
-
+// --- Gestion des Couleurs Locales ---
 const savedTop = localStorage.getItem('rtc-top-color') || '#ff4500';
 const savedBottom = localStorage.getItem('rtc-bottom-color') || '#cc0000';
 document.documentElement.style.setProperty('--bubble-green', savedTop);
 document.documentElement.style.setProperty('--bubble-brown', savedBottom);
 
-function updateColors(topColor, bottomColor, isFromCloud = false) {
+function updateColors(topColor, bottomColor) {
     document.documentElement.style.setProperty('--bubble-green', topColor);
     document.documentElement.style.setProperty('--bubble-brown', bottomColor);
 
@@ -16,43 +15,7 @@ function updateColors(topColor, bottomColor, isFromCloud = false) {
 
     localStorage.setItem('rtc-top-color', topColor);
     localStorage.setItem('rtc-bottom-color', bottomColor);
-
-    const affiliationCode = localStorage.getItem('starz_affiliation_code');
-    if (!isFromCloud && affiliationCode) {
-        const url = `${GOOGLE_SCRIPT_URL}?action=setColors&affiliationCode=${encodeURIComponent(affiliationCode)}&top=${encodeURIComponent(topColor)}&bottom=${encodeURIComponent(bottomColor)}`;
-        
-        fetch(url, { redirect: "follow" })
-        .then(res => res.json())
-        .then(data => {
-            const msg = document.getElementById('affiliation-status-msg');
-            if (msg) {
-                msg.textContent = data.success ? "✓ Couleurs mises à jour globalement !" : "✕ Code d'affiliation incorrect";
-                msg.style.color = data.success ? "green" : "red";
-            }
-        }).catch(err => {
-            console.error("Erreur synchro:", err);
-        });
-    }
 }
-
-function fetchGlobalColors() {
-    // Ajout de { redirect: "follow" } ici aussi
-    fetch(`${GOOGLE_SCRIPT_URL}?action=getColors`, {
-        redirect: "follow"
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data && data.top && data.bottom) {
-            updateColors(data.top, data.bottom, true);
-            setPipetteUI(1, data.top);
-            setPipetteUI(2, data.bottom);
-        }
-    })
-    .catch(() => {});
-}
-
-// Interrogation du Cloud toutes les 5 secondes
-setInterval(fetchGlobalColors, 5000);
 
 function setPipetteUI(target, color) {
     const btn = document.getElementById(`btn-pipette-${target}`);
@@ -118,16 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
             applyNetworkConfig(e.target.value);
         });
     }
-
-    // Gestion du champ Code d'affiliation dans les paramètres
-    const affiliationInput = document.getElementById('affiliation-code-input');
-    if (affiliationInput) {
-        affiliationInput.value = localStorage.getItem('starz_affiliation_code') || '';
-        affiliationInput.addEventListener('input', (e) => {
-            localStorage.setItem('starz_affiliation_code', e.target.value.trim());
-        });
-    }
-    fetchGlobalColors();
 
     const serialElem = document.getElementById('serial-display');
     if (serialElem && serialElem.textContent.includes('XXXXXXXXXXXXX')) {
@@ -388,4 +341,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+});
+
+let wakeLock = null;
+
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+        }
+    } catch (err) {
+        console.log("Wake Lock non disponible ou refusé");
+    }
+}
+
+requestWakeLock();
+
+document.addEventListener('visibilitychange', async () => {
+    if (wakeLock !== null && document.visibilityState === 'visible') {
+        await requestWakeLock();
+    }
 });
