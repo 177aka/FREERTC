@@ -1,16 +1,17 @@
 const CACHE = 'rtc-nomade-v9';
 const ASSETS = [
-    'index.html', 
-    'style.css',
-    'app.js', 
-    'DROMALOGOTRANS.png', 
-    'RTCLOGOTRANS.png', 
-    'LEVILOGOTRANS.png',
-    '1VERIFTRANS.png', 
-    'QRCODETRANS.png', 
-    'CONFIRMGRENTRANS.png',
-    'EXPIRELOGO.png',
-    'manifest.json'
+    './',
+    './index.html',
+    './style.css',
+    './app.js',
+    './DROMALOGOTRANS.png', 
+    './RTCLOGOTRANS.png', 
+    './LEVILOGOTRANS.png',
+    './1VERIFTRANS.png', 
+    './QRCODETRANS.png', 
+    './CONFIRMGRENTRANS.png',
+    './EXPIRELOGO.png',
+    './manifest.json'
 ];
 
 self.addEventListener('install', e => {
@@ -27,8 +28,13 @@ self.addEventListener('activate', e => {
     );
 });
 
-// Cache First : Réponse instantanée sans attendre le réseau
 self.addEventListener('fetch', e => {
+    const url = new URL(e.request.url);
+    
+    if (url.hostname.includes('script.google.com')) {
+        return;
+    }
+
     e.respondWith(
         caches.match(e.request).then(cached => cached || fetch(e.request))
     );
