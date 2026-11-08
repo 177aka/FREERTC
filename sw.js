@@ -1,35 +1,43 @@
-const CACHE = 'rtc-nomade-v8';
-const ASSETS = [
-    'index.html', 
-    'style.css',
-    'app.js', 
-    'DROMALOGOTRANS.png', 
-    'RTCLOGOTRANS.png', 
-    'LEVILOGOTRANS.png',
-    '1VERIFTRANS.png', 
-    'QRCODETRANS.png', 
-    'CONFIRMGRENTRANS.png',
-    'EXPIRELOGO.png',
-    'manifest.json'
+const CACHE_NAME = 'mcdonalds-platine-v33';
+const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './manifest.json',
+  './McCueillet.jpg',
+  './McImage.jpg',
+  './MonMcDo.png'
 ];
 
-self.addEventListener('install', e => {
-    e.waitUntil(
-        caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
-    );
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
+  );
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', e => {
-    e.waitUntil(
-        caches.keys().then(keys => Promise.all(
-            keys.map(key => { if (key !== CACHE) return caches.delete(key); })
-        )).then(() => self.clients.claim())
-    );
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
 });
 
-// Cache First : Réponse instantanée sans attendre le réseau
-self.addEventListener('fetch', e => {
-    e.respondWith(
-        caches.match(e.request).then(cached => cached || fetch(e.request))
-    );
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
+  );
 });

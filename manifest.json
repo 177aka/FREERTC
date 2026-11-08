@@ -1,16 +1,22 @@
 {
-  "name": "RTC Nomade",
-  "short_name": "RTC",
-  "start_url": "index.html",
+  "name": "McRabai",
+  "short_name": "McRabai",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#033682",
-  "theme_color": "#033682",
-  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
-    { 
-      "src": "RTCLOGOTRANS.png", 
-      "sizes": "192x192", 
-      "type": "image/png" 
+    {
+      "src": "MonMcDo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "MonMcDo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

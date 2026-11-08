@@ -1,359 +1,327 @@
-// --- Initialisation des couleurs sauvegardées ---
-const savedTop = localStorage.getItem('rtc-top-color') || '#ff4500';
-const savedBottom = localStorage.getItem('rtc-bottom-color') || '#cc0000';
-document.documentElement.style.setProperty('--bubble-green', savedTop);
-document.documentElement.style.setProperty('--bubble-brown', savedBottom);
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwY4dFf7R8uF0mt73GLS8zXSjDSaZOZBsDLxxioO8Gwe8GexEBmMbghlYIEE6JRo_z5/exec";
 
-function formatTwoDigits(n) { 
-    return n < 10 ? '0' + n : n; 
+let deviceId = localStorage.getItem('mcd_device_id');
+if (!deviceId) {
+  deviceId = 'DEV-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  localStorage.setItem('mcd_device_id', deviceId);
 }
 
-function formatTime24h(date) {
-    return `${formatTwoDigits(date.getHours())}:${formatTwoDigits(date.getMinutes())}`;
+const lockScreen = document.getElementById('lockScreen');
+const accessCodeInput = document.getElementById('accessCodeInput');
+const unlockBtn = document.getElementById('unlockBtn');
+const lockError = document.getElementById('lockError');
+const loadingSteps = document.getElementById('loadingSteps');
+const closeBtn = document.getElementById('closeBtn');
+
+function checkEnvironment() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const pwaNotice = document.getElementById('pwaInstallNotice');
+  const pwaInstructions = document.getElementById('pwaInstructions');
+
+  // Si on est sur mobile et que l'app n'est PAS installée en mode application : afficher le tuto
+  if (isMobile && !isStandalone) {
+    if (pwaNotice) pwaNotice.classList.add('active');
+    if (pwaInstructions) pwaInstructions.style.display = 'block';
+    document.body.classList.add('locked');
+    return false;
+  }
+
+  // Si c'est sur PC ou déjà installé sur mobile, on laisse passer sans bloquer
+  if (pwaNotice) pwaNotice.classList.remove('active');
+  document.body.classList.remove('locked');
+  return true;
 }
 
-function generateSerial(prefix) {
-    const characters = '0123456789ABCDEF';
-    let result = prefix + '-';
-    for (let i = 0; i < 13; i++) {
-        result += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return result;
+// On n'interrompt plus l'exécution par une erreur fatale, checkEnvironment gère l'affichage du tuto proprement
+checkEnvironment();
+
+// --- Anti-veille de l'écran (Wake Lock API) ---
+let wakeLock = null;
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+    } catch (err) {}
+  }
 }
 
-function updateColors(topColor, bottomColor) {
-    document.documentElement.style.setProperty('--bubble-green', topColor);
-    document.documentElement.style.setProperty('--bubble-brown', bottomColor);
-
-    const bubbleGreen = document.querySelector('.bubble.green');
-    const bubbleBrown = document.querySelector('.bubble.brown');
-    if (bubbleGreen) bubbleGreen.style.setProperty('background-color', topColor, 'important');
-    if (bubbleBrown) bubbleBrown.style.setProperty('background-color', bottomColor, 'important');
-
-    localStorage.setItem('rtc-top-color', topColor);
-    localStorage.setItem('rtc-bottom-color', bottomColor);
-}
-
-function setPipetteUI(target, color) {
-    const btn = document.getElementById(`btn-pipette-${target}`);
-    const input = document.getElementById(`input-color-${target}`);
-    if (btn) btn.style.backgroundColor = color;
-    if (input) input.value = color;
-}
-
-// --- Gestion dynamique du Réseau (RTC ou Lévis) ---
-const savedNetwork = localStorage.getItem('rtc-network') || 'rtc';
-const networkSelect = document.getElementById('network-select');
-if (networkSelect) networkSelect.value = savedNetwork;
-
-function applyNetworkConfig(network) {
-    localStorage.setItem('rtc-network', network);
-    
-    const body = document.body;
-    const mainTitle = document.getElementById('main-ticket-title');
-    const footerTitle = document.getElementById('footer-ticket-title');
-    const serialElem = document.getElementById('serial-display');
-    
-    if (network === 'levi') {
-        body.classList.add('mode-levi');
-        if (mainTitle) mainTitle.textContent = "STLévis - Mensuel - Régulier";
-        if (footerTitle) footerTitle.textContent = "Réservé au RTC";
-    } else {
-        body.classList.remove('mode-levi');
-        if (mainTitle) mainTitle.textContent = "RTC - 1 passage - Général";
-        if (footerTitle) footerTitle.textContent = "Réservé au RTC";
+document.addEventListener('visibilitychange', async () => {
+  if (wakeLock !== null && document.visibilityState === 'visible') {
+    if (localStorage.getItem('platine_unlocked') === 'true') {
+      await requestWakeLock();
     }
-    if (serialElem && !serialElem.dataset.custom) {
-        serialElem.textContent = generateSerial('1');
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
-    }
-
-    applyNetworkConfig(savedNetwork);
-
-    if (networkSelect) {
-        networkSelect.addEventListener('change', (e) => {
-            applyNetworkConfig(e.target.value);
-        });
-    }
-
-    const serialElem = document.getElementById('serial-display');
-    if (serialElem && serialElem.textContent.includes('XXXXXXXXXXXXX')) {
-        serialElem.textContent = generateSerial('1');
-    }
-
-    const now = new Date();
-    const expire = new Date(now.getTime() + 90 * 60 * 1000); 
-
-    const dateStr = `${formatTwoDigits(now.getDate())}/${formatTwoDigits(now.getMonth() + 1)}/${now.getFullYear()}`;
-    const timeStr = formatTime24h(now);
-    const expireTimeStr = formatTime24h(expire);
-
-    const fullActivation = `${dateStr} à ${timeStr}`;
-    const fullExpiration = `${dateStr} à ${expireTimeStr}`;
-
-    document.getElementById('activation-date').textContent = fullActivation;
-    document.getElementById('rtc-activation-date').textContent = fullActivation;
-    document.getElementById('expiration-date').textContent = fullExpiration;
-
-    const startTime = now.getTime();
-    const timerDisplay = document.getElementById('timer-display');
-    const progressBar = document.getElementById('progress-bar');
-    const totalDuration = 90 * 60; 
-
-    function updateTimeline() {
-        const currentTime = new Date().getTime();
-        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
-
-        if (elapsedSeconds >= totalDuration) {
-            timerDisplay.textContent = "90:00";
-            progressBar.style.width = "100%";
-            return;
-        }
-
-        const mins = Math.floor(elapsedSeconds / 60);
-        const secs = elapsedSeconds % 60;
-        timerDisplay.textContent = `${formatTwoDigits(mins)}:${formatTwoDigits(secs)}`;
-
-        const percentage = 1 + (elapsedSeconds / totalDuration) * 99;
-        progressBar.style.width = `${percentage}%`;
-    }
-
-    setInterval(updateTimeline, 1000);
-    updateTimeline();
-
-    const screenTicket = document.getElementById('screen-ticket');
-    const screenSettings = document.getElementById('screen-settings');
-
-    document.getElementById('btn-to-settings').addEventListener('click', (e) => {
-        e.stopPropagation();
-        screenTicket.classList.remove('active');
-        screenSettings.classList.add('active');
-    });
-
-    document.getElementById('btn-back-to-ticket').addEventListener('click', () => {
-        const topColor = localStorage.getItem('rtc-top-color') || savedTop;
-        const bottomColor = localStorage.getItem('rtc-bottom-color') || savedBottom;
-        updateColors(topColor, bottomColor);
-
-        screenSettings.classList.remove('active');
-        screenTicket.classList.add('active');
-    });
-
-    // Animation du rond central
-    const orbitFollower = document.getElementById('orbit-follower');
-    const orbitNode = document.getElementById('orbit-node');
-    let isTracking = false;
-
-    function handlePointerDown(e) {
-        if (!screenTicket.classList.contains('active') || e.target.closest('#btn-to-settings')) return;
-        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-
-        if (clientX !== undefined && clientY !== undefined) {
-            isTracking = true;
-            orbitNode.classList.add('active-speed');
-            orbitFollower.style.position = 'fixed';
-            orbitFollower.style.width = '60px';
-            orbitFollower.style.height = '60px';
-            orbitFollower.style.transform = `translate3d(${clientX - 30}px, ${clientY - 30}px, 0)`;
-        }
-    }
-
-    function handlePointerMove(e) {
-        if (!isTracking) return;
-        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-        if (clientX !== undefined && clientY !== undefined) {
-            orbitFollower.style.transform = `translate3d(${clientX - 30}px, ${clientY - 30}px, 0)`;
-        }
-    }
-
-    function handlePointerUp() {
-        if (isTracking) {
-            isTracking = false;
-            orbitNode.classList.remove('active-speed');
-            orbitFollower.style.position = 'absolute';
-            orbitFollower.style.width = '100%';
-            orbitFollower.style.height = '100%';
-            orbitFollower.style.transform = '';
-        }
-    }
-
-    function resetOrbitState() {
-        if (isTracking) {
-            isTracking = false;
-            orbitNode.classList.remove('active-speed');
-            orbitFollower.style.position = 'absolute';
-            orbitFollower.style.width = '100%';
-            orbitFollower.style.height = '100%';
-            orbitFollower.style.transform = '';
-        }
-    }
-
-    screenTicket.addEventListener('mousedown', handlePointerDown);
-    window.addEventListener('mousemove', handlePointerMove);
-    window.addEventListener('mouseup', handlePointerUp);
-    screenTicket.addEventListener('touchstart', handlePointerDown, { passive: true });
-    window.addEventListener('touchmove', handlePointerMove, { passive: true });
-    window.addEventListener('touchend', handlePointerUp);
-
-    window.addEventListener('blur', resetOrbitState);
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) resetOrbitState();
-    });
-    window.addEventListener('touchcancel', resetOrbitState);
-
-    // --- AUTOMATISATION AMÉLIORÉE DES COULEURS DES BULLES ---
-    const imageUpload = document.getElementById('image-upload');
-    const imagePreview = document.getElementById('image-preview');
-
-    let loadedImgCanvas = null;
-    let activePickTarget = 1;
-
-    imageUpload.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                imagePreview.src = event.target.result;
-                imagePreview.style.display = 'block';
-
-                loadedImgCanvas = document.createElement('canvas');
-                loadedImgCanvas.width = img.width;
-                loadedImgCanvas.height = img.height;
-                const ctx = loadedImgCanvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-
-                autoPickSmartColors(img, ctx);
-            };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
-
-    function autoPickSmartColors(img, ctx) {
-        const width = img.width;
-        const height = img.height;
-
-        const rgbToHex = (p) => '#' + [p[0], p[1], p[2]].map(v => v.toString(16).padStart(2, '0')).join('');
-
-        // Recherche un vrai pixel coloré en évitant strictement le blanc, le noir et les nuances trop fades
-        function findVibrantPixel() {
-            // On scanne l'image de manière aléatoire ou par grille pour trouver une vraie couleur
-            for (let y = 10; y < height - 10; y += Math.floor(height / 10)) {
-                for (let x = 10; x < width - 10; x += Math.floor(width / 10)) {
-                    const p = ctx.getImageData(x, y, 1, 1).data;
-                    const r = p[0], g = p[1], b = p[2];
-
-                    // Ignore le blanc, le noir/gris foncé, et les zones transparentes (alpha === 0)
-                    const isWhite = (r > 220 && g > 220 && b > 220);
-                    const isBlackOrGrey = (r < 40 && g < 40 && b < 40) || (Math.abs(r - g) < 15 && Math.abs(g - b) < 15);
-                    const isTransparent = (p[3] !== undefined && p[3] < 128);
-
-                    if (!isWhite && !isBlackOrGrey && !isTransparent) {
-                        return [r, g, b];
-                    }
-                }
-            }
-            return null;
-        }
-
-        // On cherche deux pixels aux endroits différents de l'image
-        const p1 = findVibrantPixel();
-        // On décale le scan pour le second point
-        let p2 = null;
-        for (let y = height - 20; y > 20; y -= 20) {
-            const tempP = ctx.getImageData(Math.floor(width / 2), y, 1, 1).data;
-            if (!(tempP[0] > 220 && tempP[1] > 220 && tempP[2] > 220) && !(tempP[0] < 40 && tempP[1] < 40 && tempP[2] < 40)) {
-                p2 = tempP;
-                break;
-            }
-        }
-
-        const c1 = p1 ? rgbToHex(p1) : savedTop;
-        const c2 = p2 ? rgbToHex(p2) : (p1 ? rgbToHex(p1) : savedBottom);
-
-        updateColors(c1, c2);
-        setPipetteUI(1, c1);
-        setPipetteUI(2, c2);
-    }
-
-    function handleImageTouch(e) {
-        if (!loadedImgCanvas) return;
-
-        const rect = imagePreview.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-        const scaleX = loadedImgCanvas.width / rect.width;
-        const scaleY = loadedImgCanvas.height / rect.height;
-
-        const x = Math.floor((clientX - rect.left) * scaleX);
-        const y = Math.floor((clientY - rect.top) * scaleY);
-
-        const ctx = loadedImgCanvas.getContext('2d');
-        const p = ctx.getImageData(x, y, 1, 1).data;
-        const hex = '#' + [p[0], p[1], p[2]].map(v => v.toString(16).padStart(2, '0')).join('');
-
-        if (activePickTarget === 1) {
-            updateColors(hex, localStorage.getItem('rtc-bottom-color') || savedBottom);
-            setPipetteUI(1, hex);
-            activePickTarget = 2;
-        } else {
-            updateColors(localStorage.getItem('rtc-top-color') || savedTop, hex);
-            setPipetteUI(2, hex);
-            activePickTarget = 1;
-        }
-    }
-
-    imagePreview.addEventListener('click', handleImageTouch);
-    imagePreview.addEventListener('touchstart', handleImageTouch, { passive: true });
-
-    document.getElementById('btn-pipette-1').addEventListener('click', () => { activePickTarget = 1; });
-    document.getElementById('btn-pipette-2').addEventListener('click', () => { activePickTarget = 2; });
-
-    function handleColorSelection(targetId, color) {
-        if (targetId === 1) {
-            updateColors(color, localStorage.getItem('rtc-bottom-color') || savedBottom);
-            setPipetteUI(1, color);
-        } else {
-            updateColors(localStorage.getItem('rtc-top-color') || savedTop, color);
-            setPipetteUI(2, color);
-        }
-    }
-
-    document.getElementById('input-color-1').addEventListener('input', (e) => handleColorSelection(1, e.target.value));
-    document.getElementById('input-color-2').addEventListener('input', (e) => handleColorSelection(2, e.target.value));
-
-    if (savedTop) setPipetteUI(1, savedTop);
-    if (savedBottom) setPipetteUI(2, savedBottom);
-
-    document.getElementById('btn-clear-cache').addEventListener('click', () => {
-        if ('caches' in window) {
-            caches.keys().then((keyList) => {
-                return Promise.all(keyList.map((key) => caches.delete(key)));
-            }).then(() => {
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.getRegistrations().then((registrations) => {
-                        for (let registration of registrations) {
-                            registration.unregister();
-                        }
-                    });
-                }
-                localStorage.clear();
-                alert('Le cache et les paramètres ont été réinitialisés !');
-                window.location.reload();
-            });
-        }
-    });
-
+  }
 });
+
+function lockApp() {
+  if (lockScreen) lockScreen.classList.remove('hidden');
+  document.body.classList.add('locked');
+  if (wakeLock) {
+    wakeLock.release().then(() => { wakeLock = null; });
+  }
+}
+
+function unlockApp() {
+  if (lockScreen) lockScreen.classList.add('hidden');
+  document.body.classList.remove('locked');
+  requestWakeLock();
+}
+
+function showCustomModal(title, message, onConfirm, confirmText = "Confirmer") {
+  const existingOverlay = document.getElementById('customModalOverlay');
+  if (existingOverlay) existingOverlay.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'customModalOverlay';
+  overlay.className = 'custom-modal-overlay';
+
+  overlay.innerHTML = `
+    <div class="custom-modal">
+      <h3>${title}</h3>
+      <p>${message}</p>
+      <div class="custom-modal-actions">
+        <button class="btn-cancel" id="modalCancelBtn">Annuler</button>
+        <button class="btn-confirm-danger" id="modalConfirmBtn">${confirmText}</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  document.getElementById('modalCancelBtn').addEventListener('click', () => overlay.remove());
+  document.getElementById('modalConfirmBtn').addEventListener('click', () => {
+    overlay.remove();
+    if (onConfirm) onConfirm();
+  });
+}
+
+window.addEventListener('online', () => {
+  const savedCode = localStorage.getItem('platine_used_code');
+  if (localStorage.getItem('platine_unlocked') === 'true' && savedCode) {
+    fetch(`${GOOGLE_SCRIPT_URL}?action=verify&code=${encodeURIComponent(savedCode)}&deviceId=${encodeURIComponent(deviceId)}`)
+      .then(response => response.json())
+      .then(data => {
+        if (!data.valid) {
+          localStorage.removeItem('platine_unlocked');
+          localStorage.removeItem('platine_used_code');
+          lockApp();
+          if (lockError) lockError.textContent = "Connexion rétablie : Votre licence a expiré ou a été révoquée.";
+        }
+      })
+      .catch(() => {});
+  }
+});
+
+if (localStorage.getItem('platine_unlocked') === 'true') {
+  const savedCode = localStorage.getItem('platine_used_code');
+  if (savedCode && deviceId) {
+    if(loadingSteps) loadingSteps.textContent = "Vérification de la licence...";
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    fetch(`${GOOGLE_SCRIPT_URL}?action=verify&code=${encodeURIComponent(savedCode)}&deviceId=${encodeURIComponent(deviceId)}`, { signal: controller.signal })
+      .then(response => response.json())
+      .then(data => {
+        clearTimeout(timeoutId);
+        if(loadingSteps) loadingSteps.textContent = "";
+        if (!data.valid) {
+          localStorage.removeItem('platine_unlocked');
+          localStorage.removeItem('platine_used_code');
+          lockApp();
+          if (lockError) lockError.textContent = data.reason || "Licence expirée ou révoquée.";
+        } else {
+          unlockApp();
+        }
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        if(loadingSteps) loadingSteps.textContent = "";
+        unlockApp();
+      });
+  } else {
+    localStorage.removeItem('platine_unlocked');
+    lockApp();
+  }
+} else {
+  lockApp();
+}
+
+if (unlockBtn) {
+  unlockBtn.addEventListener('click', () => {
+    const enteredCode = accessCodeInput.value.trim();
+    if (!enteredCode) {
+      lockError.textContent = "Veuillez entrer une licence valide.";
+      return;
+    }
+
+    unlockBtn.disabled = true;
+    unlockBtn.textContent = "Connexion...";
+    lockError.textContent = "";
+    if(loadingSteps) loadingSteps.textContent = "Connexion au serveur...";
+
+    fetch(`${GOOGLE_SCRIPT_URL}?action=verify&code=${encodeURIComponent(enteredCode)}&deviceId=${encodeURIComponent(deviceId)}`)
+      .then(response => response.json())
+      .then(data => {
+        unlockBtn.disabled = false;
+        unlockBtn.textContent = "Déverrouiller";
+        if(loadingSteps) loadingSteps.textContent = "";
+
+        if (data.valid) {
+          localStorage.setItem('platine_unlocked', 'true');
+          localStorage.setItem('platine_used_code', enteredCode);
+          unlockApp();
+        } else {
+          lockError.textContent = data.reason || "Licence invalide ou déjà utilisée sur un autre appareil.";
+        }
+      })
+      .catch(() => {
+        unlockBtn.disabled = false;
+        unlockBtn.textContent = "Déverrouiller";
+        if(loadingSteps) loadingSteps.textContent = "";
+        lockError.textContent = "Erreur de connexion internet.";
+      });
+  });
+}
+
+if (closeBtn) {
+  closeBtn.addEventListener('click', () => {
+    const currentLicence = localStorage.getItem('platine_used_code') || "Aucune";
+    
+    const accountHTML = `
+      <div class="modalites-text">
+        <p style="font-size: 16px; margin-bottom: 20px;">
+          Bienvenue dans votre espace, <strong id="clientNameText" style="color: #c8102e;">Chargement...</strong>
+        </p>
+        
+        <div class="account-box">
+          <strong>Votre Licence active :</strong>
+          <div class="licence-row">
+            <span id="maskedLicence">••••••••••••••••</span>
+            <button id="toggleLicenceBtn" type="button">Afficher</button>
+          </div>
+          <div class="warning-share">Ne partagez jamais votre licence (risque de révocation).</div>
+        </div>
+
+        <div class="account-box">
+          <strong>État de l'abonnement :</strong>
+          <div id="accountAlertBanner" style="display: none; margin-top: 8px; padding: 8px 10px; background-color: #ffebe9; border: 1px solid #d8232a; color: #d8232a; border-radius: 6px; font-size: 12px; font-weight: 700; text-align: center;"></div>
+          <p style="margin: 6px 0 0 0; font-size:13px; color:#444;" id="subStatusText">Chargement...</p>
+        </div>
+
+        <div class="account-box">
+          <strong>Tarifs & Support officiel :</strong>
+          <p style="margin: 6px 0 0 0; font-size:13px;">
+            • 1 Mois : 10 $<br>• 3 Mois : 15 $<br>• 6 Mois : 25 $<br>• 1 An : 35 $<br>• À Vie : 45 $<br><br>
+            Contactez <a href="https://www.snapchat.com/add/ro.mailey" target="_blank" style="color: #d8232a; font-weight: bold; text-decoration: underline;">ro.mailey</a> sur Snapchat.
+          </p>
+        </div>
+
+        <button class="danger-btn" id="logoutBtn">Se déconnecter de l'appareil</button>
+      </div>
+    `;
+
+    openSubPage("Mon Compte", accountHTML);
+
+    let isVisible = false;
+    const toggleBtn = document.getElementById('toggleLicenceBtn');
+    const maskedSpan = document.getElementById('maskedLicence');
+    
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        isVisible = !isVisible;
+        maskedSpan.textContent = isVisible ? currentLicence : "••••••••••••••••";
+        toggleBtn.textContent = isVisible ? "Masquer" : "Afficher";
+      });
+    }
+
+    const subStatusText = document.getElementById('subStatusText');
+    const clientNameText = document.getElementById('clientNameText');
+    const accountAlertBanner = document.getElementById('accountAlertBanner');
+
+    fetch(`${GOOGLE_SCRIPT_URL}?action=verify&code=${encodeURIComponent(currentLicence)}&deviceId=${encodeURIComponent(deviceId)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (clientNameText) clientNameText.textContent = data.client ? data.client : "Utilisateur VIP";
+        if (subStatusText && data.valid) {
+          let expirationText = data.expDate === "À vie" ? "Accès permanent (À vie)" : `Expire le : ${data.expDate}`;
+          subStatusText.innerHTML = `<span style="color: green; font-weight: bold;">● Licence active et valide</span><br><span>${expirationText}</span><br><small style="color: #666;">Appareil sécurisé.</small>`;
+        }
+      })
+      .catch(() => {
+        if (clientNameText) clientNameText.textContent = "Mode Hors-ligne";
+        if (subStatusText) subStatusText.textContent = "Statut actif (Mode hors-ligne)";
+      });
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        showCustomModal("Déconnexion", "Voulez-vous vous déconnecter de cet appareil ?", () => {
+          localStorage.removeItem('platine_unlocked');
+          localStorage.removeItem('platine_used_code');
+          window.location.reload();
+        }, "Se déconnecter");
+      });
+    }
+  });
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => {});
+  });
+}
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const splash = document.getElementById('splashScreen');
+    if (splash) {
+      splash.classList.add('fade-out');
+      setTimeout(() => splash.remove(), 300);
+    }
+  }, 400);
+});
+
+const mainView = document.getElementById('mainView');
+const subView = document.getElementById('subView');
+const pageTitle = document.getElementById('pageTitle');
+const pageBody = document.getElementById('pageBody');
+const backBtn = document.getElementById('backBtn');
+const periodText = document.getElementById('periodText');
+
+function openSubPage(title, contentHTML) {
+  pageTitle.textContent = title;
+  pageBody.innerHTML = contentHTML;
+  mainView.classList.remove('active');
+  subView.classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+if (backBtn) {
+  backBtn.addEventListener('click', () => {
+    subView.classList.remove('active');
+    mainView.classList.add('active');
+    window.scrollTo(0, 0);
+  });
+}
+
+document.getElementById('modalitesLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  openSubPage("Modalités de cette offre", `<div class="modalites-text"><p>Valable dans les restaurants McDonald's du Canada participants. Max 1 offre par transaction.</p></div>`);
+});
+
+document.getElementById('restaurantsLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  openSubPage("Restaurants participants", `<div class="modalites-text"><p>Valable dans la grande majorité des restaurants McDonald's au Canada au comptoir.</p></div>`);
+});
+
+const cycleDays = ["Expire dans 3 jours", "Expire dans 2 jours", "Expire demain", "Expire aujourd'hui"];
+let cycleIndex = parseInt(localStorage.getItem('platine_cycle_index')) || 0;
+if (periodText) {
+  periodText.textContent = `Période de l'offre : ${cycleDays[cycleIndex]}`;
+  periodText.addEventListener('click', () => {
+    cycleIndex = (cycleIndex + 1) % cycleDays.length;
+    localStorage.setItem('platine_cycle_index', cycleIndex);
+    periodText.textContent = `Période de l'offre : ${cycleDays[cycleIndex]}`;
+  });
+}
