@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7WEWfyX23aHopbQSDfo-mgH5B6nS7xTS1mlUFrTglzjA7m36trHwSMEK3rVdnPgfE/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQdi3ylsvLHDLTSny6__tBOtdkHVEtg985j6AvmPAQv4Lr8H_3rlp6ZswsPRHn5qtv/exec";
 
 const savedTop = localStorage.getItem('rtc-top-color') || '#ff4500';
 const savedBottom = localStorage.getItem('rtc-bottom-color') || '#cc0000';
