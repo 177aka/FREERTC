@@ -1,6 +1,5 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyK2WsuTS2Z5s2_28883nG2Eo99mAdOjFOQ_kqLzLkkez0mR2R5WJTaLTLDd6t2rcC2/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7WEWfyX23aHopbQSDfo-mgH5B6nS7xTS1mlUFrTglzjA7m36trHwSMEK3rVdnPgfE/exec";
 
-// --- Gestion des Couleurs et Synchronisation Globale ---
 const savedTop = localStorage.getItem('rtc-top-color') || '#ff4500';
 const savedBottom = localStorage.getItem('rtc-bottom-color') || '#cc0000';
 document.documentElement.style.setProperty('--bubble-green', savedTop);
@@ -20,10 +19,9 @@ function updateColors(topColor, bottomColor, isFromCloud = false) {
 
     const affiliationCode = localStorage.getItem('starz_affiliation_code');
     if (!isFromCloud && affiliationCode) {
-        // Ajout de { redirect: "follow" } pour contourner le blocage CORS de Google
-        fetch(`${GOOGLE_SCRIPT_URL}?action=setColors&affiliationCode=${encodeURIComponent(affiliationCode)}&top=${encodeURIComponent(topColor)}&bottom=${encodeURIComponent(bottomColor)}`, {
-            redirect: "follow"
-        })
+        const url = `${GOOGLE_SCRIPT_URL}?action=setColors&affiliationCode=${encodeURIComponent(affiliationCode)}&top=${encodeURIComponent(topColor)}&bottom=${encodeURIComponent(bottomColor)}`;
+        
+        fetch(url, { redirect: "follow" })
         .then(res => res.json())
         .then(data => {
             const msg = document.getElementById('affiliation-status-msg');
@@ -31,7 +29,9 @@ function updateColors(topColor, bottomColor, isFromCloud = false) {
                 msg.textContent = data.success ? "✓ Couleurs mises à jour globalement !" : "✕ Code d'affiliation incorrect";
                 msg.style.color = data.success ? "green" : "red";
             }
-        }).catch(() => {});
+        }).catch(err => {
+            console.error("Erreur synchro:", err);
+        });
     }
 }
 
