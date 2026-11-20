@@ -208,8 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.hidden) resetOrbitState();
     });
     window.addEventListener('touchcancel', resetOrbitState);
-
-    // --- Automatisation des couleurs des bulles via l'image ---
+    
     const imageUpload = document.getElementById('image-upload');
     const imagePreview = document.getElementById('image-preview');
 
@@ -243,25 +242,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function autoPickSmartColors(img, ctx) {
-        const width = img.width;
-        const height = img.height;
-        const rgbToHex = (p) => '#' + [p[0], p[1], p[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+    const width = img.width;
+    const height = img.height;
+    const rgbToHex = (r, g, b) => '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+    
+    const bg = ctx.getImageData(Math.floor(width * 0.9), Math.floor(height * 0.05), 1, 1).data;
 
-        function findVibrantPixel(startX, startY) {
-            const p = ctx.getImageData(startX, startY, 1, 1).data;
-            return [p[0], p[1], p[2]];
+    const colorDiff = (r1, g1, b1, r2, g2, b2) => 
+        Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+
+    function findBubbleColor(startX, endX) {
+        const step = startX < endX ? 2 : -2;
+        const y = Math.floor(height * 0.48);
+
+        for (let x = startX; startX < endX ? x < endX : x > endX; x += step) {
+            const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+            
+            const isBackground = colorDiff(r, g, b, bg[0], bg[1], bg[2]) < 90;
+            const isWhite = r > 230 && g > 230 && b > 230;
+
+            if (!isBackground && !isWhite) {
+                const [br, bgCol, bb] = ctx.getImageData(x + (step * 3), y, 1, 1).data;
+                return rgbToHex(br, bgCol, bb);
+            }
         }
-
-        const rgb1 = findVibrantPixel(Math.floor(width / 2), Math.floor(height * 0.3));
-        const rgb2 = findVibrantPixel(Math.floor(width / 2), Math.floor(height * 0.7));
-
-        const c1 = rgbToHex(rgb1);
-        const c2 = rgbToHex(rgb2);
-
-        updateColors(c1, c2);
-        setPipetteUI(1, c1);
-        setPipetteUI(2, c2);
+        return '#000000';
     }
+
+    const c1 = findBubbleColor(Math.floor(width * 0.15), Math.floor(width * 0.45));
+    const c2 = findBubbleColor(Math.floor(width * 0.85), Math.floor(width * 0.55));
+
+    updateColors(c1, c2);
+    setPipetteUI(1, c1);
+    setPipetteUI(2, c2);
+}
 
     function handleImageTouch(e) {
         if (!loadedImgCanvas) return;
