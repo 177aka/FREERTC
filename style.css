@@ -63,7 +63,7 @@ body {
     top: 0;
     left: 0;
     width: 100%;
-    height: 18px;
+    height: 13px;
     background: #ffffff;
     z-index: 5;
     pointer-events: none;
@@ -106,11 +106,10 @@ body.mode-levi .bg-pattern {
     z-index: 10;
     max-width: 410px;
     width: 100%;
-    padding: 35px 16px 10px 16px; /* Descendu légèrement plus bas */
+    padding: 35px 16px 10px 16px;
     margin: 0 auto;
 }
 
-/* Bouton retour plus petit et élégant */
 .back-btn {
     background: white;
     border: none;
@@ -400,13 +399,6 @@ body.mode-levi .bg-pattern {
     flex: 1;
 }
 
-#screen-settings {
-    background: #ffffff !important;
-    z-index: 100;
-    padding: 0 !important;
-    overflow-y: auto;
-}
-
 .app-screen {
     display: none;
     width: 100%;
@@ -422,6 +414,7 @@ body.mode-levi .bg-pattern {
 }
 
 #screen-settings {
+    z-index: 100;
     background: #f4f6f9 !important;
     padding: 20px 16px !important;
     overflow-y: auto;
